@@ -1,0 +1,351 @@
+1. User Flow & Pages
+Landing / Disclaimer
+
+Fictional-only disclaimer (“For training purposes…”)
+
+Clarify the player “is OpenAI” negotiating with 23andMe
+
+“Start Negotiation” button
+
+Negotiation Screen
+
+Right pane: “23andMe CEO” texting UI
+
+Left pane: Kirk Kinnel avatar video (Synthesia) + “Ask Tip” button
+
+Below: Two response buttons (A/B) that map to the current round’s choices
+
+Feedback overlay: “Correct → Next round” or “Wrong → Restart”
+
+Debrief Screen
+
+Play final Kirk avatar video
+
+Show the four debrief categories with collapsible detail
+
+2. Functional Requirements
+Feature	Description
+Scripted Branching Logic	Six rounds, each with two options. Wrong → restart; right → advance.
+Avatar Video Playback	Pre-generated Synthesia clips for: opening, each tip, debrief.
+“Ask Tip” Modal	On click, pause text UI, play tip video or audio.
+Texting Interface	Styled chat bubbles, simulated input (no free text entry).
+Audio Guidance (ElevenLabs)	Optional: dynamic “free-flow” voice responses from Kirk for unstructured tips or encouragement.
+State Management	Track current round, correct/incorrect, and restart logic.
+Session Persistence (optional)	Allow users to pick up where they left off.
+Mobile responsiveness	Two-pane → stacked layout on narrow screens.
+
+3. Non-Functional Requirements
+Performance: < 2 s load, lazy-load videos
+
+Accessibility: Keyboard navigable, alt-text, subtitles for videos
+
+Analytics: Track number of restarts, tip requests, completion rate
+
+Security: API keys (ElevenLabs, Synthesia) stored server-side; rate-limit tip requests
+
+4. Technical Architecture
+java
+Copy
+Edit
+┌──────────────┐       REST/WebSocket       ┌────────────────────────┐
+│   React SPA  │  ───────────────────────▶ │  Node/Express (or FaaS)│
+│ (Vite or CRA)│                           │ • ElevenLabs TTS Proxy │
+│              │ ◀───────────────────────  │ • (opt) Branching Logic│
+└──────────────┘    static assets (videos) └────────────────────────┘
+          │                                      │
+    Static host (Netlify, Vercel)                 │
+          │                                      │
+      CDN storage ◀─────────── Synthesia API     │
+                                                 │
+                                      23andMe CEO script + Kirk tips (JSON)     
+Frontend
+
+React + React Router
+
+State via Context or Zustand
+
+Video player component (e.g. react-player)
+
+Chat UI (custom or library like Chat UI Kit)
+
+Backend (recommended)
+
+Proxy ElevenLabs TTS calls (hide API key)
+
+Serve branching script JSON if you want to update scenarios without redeploying frontend
+
+Optionally record analytics (e.g. via a small MongoDB/Postgres or serverless analytics)
+
+Could you go fully front-end?
+Only if all media assets (videos + pre-rendered tip audio) are baked into the build, and you never need to call ElevenLabs at runtime. That limits you to static content only.
+
+5. Data & Asset Management
+Content JSON
+
+jsonc
+Copy
+Edit
+{
+  "rounds": [
+    {
+      "ceoText": "...",
+      "kirkTipKey": "I",
+      "options": {
+        "A": { "text": "...", "isCorrect": true },
+        "B": { "text": "...", "isCorrect": false }
+      },
+      "nextVideo": "kirk_tip_I.mp4"
+    },
+    …  
+  ]
+}
+Media
+
+Store Synthesia-rendered MP4s in a CDN bucket
+
+(If dynamic) Generate ElevenLabs MP3 on-demand via backend
+
+6. Clarifying Questions
+Dynamic vs. Static Tips
+
+Will all Kirk tips be fully pre-recorded videos? Or do you want on-the-fly ElevenLabs audio for “free-flow” guidance?
+
+User Progress Persistence
+
+Should a user be able to leave and return to their current round?
+
+Scalability & Multi-Scenario
+
+Is this single negotiation or will you add more “experiences” in future?
+
+Analytics & Auth
+
+Do users log in, or is this entirely anonymous? What metrics matter most?
+
+Hosting Preferences
+
+Any constraints (e.g. Vercel, AWS)?
+
+With those answers we can refine whether a backend is needed (to proxy TTS, store state, analytics, serve scenario JSON) or if a purely static React build suffices. Let me know!
+
+
+
+
+
+
+
+You said:
+I want both the pre-recorded tips and the elevenlabs audio free-flow for when the user types in a question. So I guess we do need a backend! 
+If the user leaves just start at the start. 
+Keep it as simple as possible for now - no login, auth, etc... lets use Vercel to host. 
+
+Please give me a detailed requirements list now that I can give to another AI to implement this website step by step. 
+
+
+ChatGPT said:
+Here’s a comprehensive, implementation-ready requirements checklist for The Kirk Kinnel Experience, organized so another AI (or engineer) can pick it up and work through step by step:
+
+1. Technology Stack
+Frontend:
+
+React (Vite or Create-React-App)
+
+React Router for routing
+
+State management via Context API or Zustand
+
+UI library: plain CSS Modules / Tailwind or a lightweight component library
+
+Video player: react-player or native <video>
+
+Chat UI: custom components (bubbles + buttons)
+
+Audio playback: HTML5 <audio>
+
+Backend:
+
+Node.js + Express (or Vercel Serverless Functions)
+
+ElevenLabs TTS integration (proxying API key)
+
+Static JSON scenario data endpoint
+
+CORS enabled for your frontend domain
+
+Hosting:
+
+Frontend + Backend as Vercel project
+
+Static assets (Synthesia MP4s) in Vercel’s built-in storage or linked CDN
+
+2. Content & Data
+Scenario JSON (/api/scenario.json)
+
+jsonc
+Copy
+Edit
+{
+  "rounds": [
+    {
+      "ceoText": "Hi, this is Alex Morgan…",
+      "tipKey": "I",
+      "options": {
+        "A": { "text": "Alex, thank you…", "correct": true },
+        "B": { "text": "We want to buy…", "correct": false }
+      }
+    },
+    { /* round 2 */ }, …, { /* round 6 */ },
+    {
+      "ceoText": "Perfect—please send the draft…",
+      "tipKey": "Debrief"
+    }
+  ],
+  "tips": {
+    "I": { "videoUrl": "/videos/tip_I.mp4" },
+    "E": { "videoUrl": "/videos/tip_E.mp4" },
+    …,
+    "Debrief": { "videoUrl": "/videos/tip_debrief.mp4" }
+  }
+}
+Media Storage
+
+Place tip_I.mp4, tip_E.mp4, …, tip_debrief.mp4 in /public/videos/
+
+Ensure each video has embedded captions.
+
+3. Frontend Requirements
+3.1 Pages & Routes
+/ Landing
+
+Disclaimer text
+
+“Start Negotiation” button → /negotiation
+
+/negotiation Main Experience
+
+Layout: two-column (stacked on mobile)
+
+Left: Kirk avatar area
+
+Video player slot for Synthesia clip (opening & tips)
+
+“Ask a Question” text input + Send button
+
+Right: Chat area
+
+Simulated CEO bubble (scripted)
+
+Two choice buttons (A/B) underneath
+
+Modals / Popups:
+
+On “Ask a Question” send → show loading spinner → play returned audio + optional transcript
+
+/debrief Final Debrief
+
+Play debrief video
+
+Expandable sections for Institutional, Relational, Situational, Personal
+
+3.2 State Management
+currentRound index (0–6)
+
+hasStarted boolean
+
+showTip(key) function to load the matching video
+
+chatHistory[] for rendered bubbles (optional)
+
+isAskingQuestion boolean & questionText
+
+3.3 User Interactions
+Start → load opening video, then show Round 1 CEO text + A/B choices.
+
+Choice click (A/B):
+
+If correct → increment currentRound, show next CEO text
+
+If wrong → show “Restart” overlay + replay opening video on confirm
+
+Ask question:
+
+User types free text, clicks Send
+
+Frontend calls POST /api/ask with { question }
+
+Play returned audio stream & display transcript
+
+4. Backend Requirements
+4.1 Endpoints
+GET /api/scenario.json
+
+Returns the static rounds + tips structure
+
+POST /api/ask
+
+Request: { question: string }
+
+Action: call ElevenLabs TTS → synthesize audio + (optionally) speech-to-text transcript
+
+Response:
+
+json
+Copy
+Edit
+{
+  "audioUrl": "https://.../audio123.mp3",
+  "transcript": "Sure, here’s how to…"
+}
+4.2 ElevenLabs Integration
+Store API key in environment variable ELEVENLABS_KEY
+
+Use official SDK or REST: send text, receive binary MP3
+
+Save MP3 to a temporary folder or stream directly back to client
+
+4.3 Caching & Rate-Limit
+Simple in-memory cache for repeated questions
+
+Throttle requests per IP to avoid abuse
+
+5. Deployment & CI
+Vercel Project Setup
+
+Connect to your Git repo
+
+Frontend under / folder; backend functions under /api
+
+Environment variable ELEVENLABS_KEY in Vercel dashboard
+
+Build & Deploy
+
+npm run build → Vercel will build React and deploy serverless functions
+
+Videos served from /public/videos automatically
+
+Testing
+
+Unit test choice‐logic (round progression, restart behavior)
+
+Integration test /api/ask with mock ElevenLabs
+
+6. Step-By-Step Implementation Tasks
+Scaffold React app + install dependencies (react-player, Zustand)
+
+Create /api/scenario.json and drop videos into /public/videos
+
+Build Landing page with disclaimer + navigation
+
+Implement Negotiation layout: avatar panel + chat panel + choices
+
+Wire choice buttons to scenario JSON + restart logic
+
+Add “Ask a Question” input & hook to /api/ask
+
+Implement serverless function to proxy ElevenLabs TTS
+
+Test end-to-end flow: correct/wrong choices, question audio
+
+Build Debrief page with video + collapsible lessons
+
+Deploy to Vercel, set env var, smoke-test live site
