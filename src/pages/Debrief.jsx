@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ReactPlayer from 'react-player';
+import useNegotiationStore from '../store/negotiationStore';
 import '../styles/Debrief.css';
 
 function Debrief() {
   const navigate = useNavigate();
   const [expandedCategory, setExpandedCategory] = useState(null);
+  const { resetNegotiation } = useNegotiationStore();
 
   const toggleCategory = (category) => {
     if (expandedCategory === category) {
@@ -13,6 +15,11 @@ function Debrief() {
     } else {
       setExpandedCategory(category);
     }
+  };
+
+  const handleReturnToStart = () => {
+    resetNegotiation();
+    navigate('/');
   };
 
   const debriefCategories = [
@@ -75,7 +82,7 @@ function Debrief() {
       
       <button 
         className="restart-button"
-        onClick={() => navigate('/')}
+        onClick={handleReturnToStart}
       >
         Return to Start
       </button>

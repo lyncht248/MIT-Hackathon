@@ -77,6 +77,14 @@ const useNegotiationStore = create((set, get) => ({
   
   restartNegotiation: () => {
     set({ currentRound: 0 });
+  },
+  
+  // Add a complete reset function that resets everything
+  resetNegotiation: () => {
+    set({ 
+      currentRound: 0,
+      scenario: null
+    });
   }
 }));
 

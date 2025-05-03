@@ -1,8 +1,43 @@
+/* Add these styles to the top of your Negotiation.css file */
+.negotiation-page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.negotiation-top-bar {
+  background-color: #ff0000;
+  color: white;
+  padding: 10px 0;
+  text-align: center;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.negotiation-top-bar h1 {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 1.8rem;
+  font-weight: 600;
+  margin: 0;
+  letter-spacing: 1px;
+}
+
+.negotiation-top-bar h2 {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 1rem;
+  font-weight: 400;
+  margin: 3px 0 0 0;
+  opacity: 0.9;
+}
+
+/* Update the negotiation-container to take remaining height */
 .negotiation-container {
   display: flex;
-  min-height: 100vh;
+  flex: 1;
   background-color: #f0f2f5;
 }
+
+/* Add this to the HTML head to import the Montserrat font */
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap');
 
 .negotiation-left {
   flex: 1;

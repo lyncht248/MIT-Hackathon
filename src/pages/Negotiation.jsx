@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ReactPlayer from 'react-player';
 import useNegotiationStore from '../store/negotiationStore';
@@ -20,12 +20,47 @@ function Negotiation() {
   const [askingQuestion, setAskingQuestion] = useState(false);
   const [question, setQuestion] = useState('');
   const [audioResponse, setAudioResponse] = useState(null);
-  const [userMessages, setUserMessages] = useState([]);
+  
+  // Replace separate message arrays with a single unified array
+  const [messageHistory, setMessageHistory] = useState([]);
+  
+  // Add a ref to the messages container for auto-scrolling
+  const messagesContainerRef = useRef(null);
 
   useEffect(() => {
     // Load scenario data when component mounts
     loadScenario();
   }, [loadScenario]);
+
+  // Add CEO messages to history when round changes
+  useEffect(() => {
+    if (scenario && scenario.rounds && scenario.rounds.length > 0) {
+      const currentCeoText = scenario.rounds[currentRound].ceoText;
+      
+      // Check if this CEO message is already in the history
+      const messageExists = messageHistory.some(
+        msg => msg.text === currentCeoText && msg.sender === 'ceo'
+      );
+      
+      if (!messageExists) {
+        setMessageHistory(prevMessages => [
+          ...prevMessages, 
+          { 
+            sender: 'ceo', 
+            text: currentCeoText,
+            timestamp: Date.now() 
+          }
+        ]);
+      }
+    }
+  }, [currentRound, scenario, messageHistory]);
+
+  // Auto-scroll to bottom when messages change
+  useEffect(() => {
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+    }
+  }, [messageHistory]);
 
   // Handle when user reaches the end of the negotiation
   useEffect(() => {
@@ -35,8 +70,15 @@ function Negotiation() {
   }, [currentRound, scenario, navigate]);
 
   const handleOptionClick = (option, isCorrect) => {
-    // Add the selected option to user messages
-    setUserMessages([...userMessages, option]);
+    // Add the selected option to message history as a user message
+    setMessageHistory(prevMessages => [
+      ...prevMessages,
+      {
+        sender: 'user',
+        text: option,
+        timestamp: Date.now()
+      }
+    ]);
     
     // Show animation effect before showing feedback
     setTimeout(() => {
@@ -54,8 +96,8 @@ function Negotiation() {
         setTimeout(() => {
           setShowFeedback(false);
           restartNegotiation();
-          // Clear user messages when restarting
-          setUserMessages([]);
+          // Clear message history when restarting
+          setMessageHistory([]);
         }, 2000);
       }
     }, 500); // Short delay to show message animation
@@ -97,141 +139,147 @@ function Negotiation() {
   const tipVideo = scenario.tips && round.tipKey ? scenario.tips[round.tipKey]?.videoUrl : null;
 
   return (
-    <div className="negotiation-container">
-      {/* Left column - Kirk's avatar and question area */}
-      <div className="negotiation-left">
-        <div className="avatar-container">
-          <div className="video-placeholder">
-            {tipVideo ? (
-              <ReactPlayer 
-                url="/videos/placeholder-tip.mp4" 
-                width="100%" 
-                height="100%" 
-                controls={false}
-                playing={showTip}
-              />
-            ) : (
-              <div className="kirk-avatar">Kirk Kinnell</div>
-            )}
-          </div>
-          <button className="ask-tip-button" onClick={handleAskTip}>
-            Ask Tip
-          </button>
-        </div>
-        
-        <div className="question-area">
-          <input
-            type="text"
-            placeholder="Ask Kirk a question..."
-            value={question}
-            onChange={(e) => setQuestion(e.target.value)}
-            disabled={askingQuestion}
-          />
-          <button 
-            onClick={handleAskQuestion}
-            disabled={askingQuestion || !question.trim()}
-          >
-            {askingQuestion ? 'Asking...' : 'Ask'}
-          </button>
-        </div>
-        
-        {audioResponse && (
-          <div className="audio-response">
-            <p>{audioResponse.transcript}</p>
-            <button onClick={() => setAudioResponse(null)}>Close</button>
-          </div>
-        )}
+    <div className="negotiation-page">
+      {/* New top bar */}
+      <div className="negotiation-top-bar" style={{ backgroundColor: '#3D52A0', color: 'white' }}>
+        <h1>Negotiation Simulation</h1>
+        <h2>Can OpenAI acquire 23andMe?</h2>
       </div>
       
-      {/* Middle column - Phone messaging UI */}
-      <div className="negotiation-middle">
-        <div className="phone-container">
-          <div className="phone-frame">
-            <div className="phone-header">
-              <div className="ceo-profile">
-                <div className="ceo-avatar"></div>
-                <span>Alex Morgan (23andMe CEO)</span>
-              </div>
+      <div className="negotiation-container">
+        {/* Left column - Kirk's avatar and question area */}
+        <div className="negotiation-left">
+          <div className="avatar-container">
+            <div className="video-placeholder">
+              {tipVideo ? (
+                <ReactPlayer 
+                  url="/videos/placeholder-tip.mp4" 
+                  width="100%" 
+                  height="100%" 
+                  controls={false}
+                  playing={showTip}
+                />
+              ) : (
+                <div className="kirk-avatar">Kirk Kinnell</div>
+              )}
             </div>
-            
-            <div className="messages-container">
-              <div className="ceo-message">
-                <div className="message-bubble">
-                  {round.ceoText}
+            <button className="ask-tip-button" onClick={handleAskTip}>
+              Ask Tip
+            </button>
+          </div>
+          
+          <div className="question-area">
+            <input
+              type="text"
+              placeholder="Ask Kirk a question..."
+              value={question}
+              onChange={(e) => setQuestion(e.target.value)}
+              disabled={askingQuestion}
+            />
+            <button 
+              onClick={handleAskQuestion}
+              disabled={askingQuestion || !question.trim()}
+            >
+              {askingQuestion ? 'Asking...' : 'Ask'}
+            </button>
+          </div>
+          
+          {audioResponse && (
+            <div className="audio-response">
+              <p>{audioResponse.transcript}</p>
+              <button onClick={() => setAudioResponse(null)}>Close</button>
+            </div>
+          )}
+        </div>
+        
+        {/* Middle column - Phone messaging UI */}
+        <div className="negotiation-middle">
+          <div className="phone-container">
+            <div className="phone-frame">
+              <div className="phone-header">
+                <div className="ceo-profile">
+                  <div className="ceo-avatar"></div>
+                  <span>CEO of 23andMe</span>
                 </div>
               </div>
               
-              {userMessages.map((message, index) => (
-                <div key={index} className="user-message">
-                  <div className="message-bubble">
-                    {message}
+              <div className="messages-container" ref={messagesContainerRef}>
+                {/* Display messages in chronological order */}
+                {messageHistory.map((message, index) => (
+                  <div 
+                    key={`message-${index}`} 
+                    className={`${message.sender}-message`}
+                  >
+                    <div className="message-bubble">
+                      {message.text}
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           </div>
         </div>
-      </div>
-      
-      {/* Right column - Response options */}
-      <div className="negotiation-right">
-        <div className="options-container">
-          <h3>Your Response Options:</h3>
-          {round.options && (
-            <>
-              <button 
-                className="option-button"
-                onClick={() => handleOptionClick(round.options.A.text, round.options.A.correct)}
-              >
-                {round.options.A.text}
-              </button>
-              <button 
-                className="option-button"
-                onClick={() => handleOptionClick(round.options.B.text, round.options.B.correct)}
-              >
-                {round.options.B.text}
-              </button>
-            </>
-          )}
-        </div>
-      </div>
-      
-      {showTip && (
-        <div className="tip-modal">
-          <div className="tip-content">
-            <h3>Kirk's Tip</h3>
-            <div className="tip-video">
-              {/* Placeholder for tip video */}
-              <ReactPlayer 
-                url="/videos/placeholder-tip.mp4" 
-                width="100%" 
-                height="100%" 
-                controls={true}
-                playing={true}
-              />
-            </div>
-            <button onClick={handleCloseTip}>Close</button>
-          </div>
-        </div>
-      )}
-      
-      {showFeedback && (
-        <div className="feedback-overlay">
-          <div className={`feedback-content ${isCorrect ? 'correct' : 'incorrect'}`}>
-            {isCorrect ? (
+        
+        {/* Right column - Response options */}
+        <div className="negotiation-right">
+          <div className="options-container">
+            <h3>Your Response Options:</h3>
+            {round.options && (
               <>
-                <h2>Correct!</h2>
-                <p>Moving to the next round...</p>
-              </>
-            ) : (
-              <>
-                <h2>Incorrect</h2>
-                <p>Let's try again from the beginning...</p>
+                <button 
+                  className="option-button"
+                  onClick={() => handleOptionClick(round.options.A.text, round.options.A.correct)}
+                >
+                  {round.options.A.text}
+                </button>
+                <button 
+                  className="option-button"
+                  onClick={() => handleOptionClick(round.options.B.text, round.options.B.correct)}
+                >
+                  {round.options.B.text}
+                </button>
               </>
             )}
           </div>
         </div>
-      )}
+        
+        {showTip && (
+          <div className="tip-modal">
+            <div className="tip-content">
+              <h3>Kirk's Tip</h3>
+              <div className="tip-video">
+                {/* Placeholder for tip video */}
+                <ReactPlayer 
+                  url="/videos/placeholder-tip.mp4" 
+                  width="100%" 
+                  height="100%" 
+                  controls={true}
+                  playing={true}
+                />
+              </div>
+              <button onClick={handleCloseTip}>Close</button>
+            </div>
+          </div>
+        )}
+        
+        {showFeedback && (
+          <div className="feedback-overlay">
+            <div className={`feedback-content ${isCorrect ? 'correct' : 'incorrect'}`}>
+              {isCorrect ? (
+                <>
+                  <h2>Correct!</h2>
+                  <p>Moving to the next round...</p>
+                </>
+              ) : (
+                <>
+                  <h2>Incorrect</h2>
+                  <p>Let's try again from the beginning...</p>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
