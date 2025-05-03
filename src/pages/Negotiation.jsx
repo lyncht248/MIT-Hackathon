@@ -20,6 +20,7 @@ function Negotiation() {
   const [askingQuestion, setAskingQuestion] = useState(false);
   const [question, setQuestion] = useState('');
   const [audioResponse, setAudioResponse] = useState(null);
+  const [userMessages, setUserMessages] = useState([]);
 
   useEffect(() => {
     // Load scenario data when component mounts
@@ -33,23 +34,31 @@ function Negotiation() {
     }
   }, [currentRound, scenario, navigate]);
 
-  const handleOptionClick = (isCorrect) => {
-    setIsCorrect(isCorrect);
-    setShowFeedback(true);
+  const handleOptionClick = (option, isCorrect) => {
+    // Add the selected option to user messages
+    setUserMessages([...userMessages, option]);
     
-    if (isCorrect) {
-      // Wait 2 seconds before advancing to next round
-      setTimeout(() => {
-        setShowFeedback(false);
-        advanceRound();
-      }, 2000);
-    } else {
-      // Wait 2 seconds before restarting
-      setTimeout(() => {
-        setShowFeedback(false);
-        restartNegotiation();
-      }, 2000);
-    }
+    // Show animation effect before showing feedback
+    setTimeout(() => {
+      setIsCorrect(isCorrect);
+      setShowFeedback(true);
+      
+      if (isCorrect) {
+        // Wait 2 seconds before advancing to next round
+        setTimeout(() => {
+          setShowFeedback(false);
+          advanceRound();
+        }, 2000);
+      } else {
+        // Wait 2 seconds before restarting
+        setTimeout(() => {
+          setShowFeedback(false);
+          restartNegotiation();
+          // Clear user messages when restarting
+          setUserMessages([]);
+        }, 2000);
+      }
+    }, 500); // Short delay to show message animation
   };
 
   const handleAskTip = () => {
@@ -89,6 +98,7 @@ function Negotiation() {
 
   return (
     <div className="negotiation-container">
+      {/* Left column - Kirk's avatar and question area */}
       <div className="negotiation-left">
         <div className="avatar-container">
           <div className="video-placeholder">
@@ -133,32 +143,56 @@ function Negotiation() {
         )}
       </div>
       
-      <div className="negotiation-right">
-        <div className="chat-container">
-          <div className="ceo-message">
-            <div className="message-bubble">
-              {round.ceoText}
+      {/* Middle column - Phone messaging UI */}
+      <div className="negotiation-middle">
+        <div className="phone-container">
+          <div className="phone-frame">
+            <div className="phone-header">
+              <div className="ceo-profile">
+                <div className="ceo-avatar"></div>
+                <span>Alex Morgan (23andMe CEO)</span>
+              </div>
+            </div>
+            
+            <div className="messages-container">
+              <div className="ceo-message">
+                <div className="message-bubble">
+                  {round.ceoText}
+                </div>
+              </div>
+              
+              {userMessages.map((message, index) => (
+                <div key={index} className="user-message">
+                  <div className="message-bubble">
+                    {message}
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
-          
-          <div className="options-container">
-            {round.options && (
-              <>
-                <button 
-                  className="option-button"
-                  onClick={() => handleOptionClick(round.options.A.correct)}
-                >
-                  {round.options.A.text}
-                </button>
-                <button 
-                  className="option-button"
-                  onClick={() => handleOptionClick(round.options.B.correct)}
-                >
-                  {round.options.B.text}
-                </button>
-              </>
-            )}
-          </div>
+        </div>
+      </div>
+      
+      {/* Right column - Response options */}
+      <div className="negotiation-right">
+        <div className="options-container">
+          <h3>Your Response Options:</h3>
+          {round.options && (
+            <>
+              <button 
+                className="option-button"
+                onClick={() => handleOptionClick(round.options.A.text, round.options.A.correct)}
+              >
+                {round.options.A.text}
+              </button>
+              <button 
+                className="option-button"
+                onClick={() => handleOptionClick(round.options.B.text, round.options.B.correct)}
+              >
+                {round.options.B.text}
+              </button>
+            </>
+          )}
         </div>
       </div>
       
